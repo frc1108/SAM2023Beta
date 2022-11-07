@@ -39,7 +39,7 @@ import io.github.oblarg.oblog.annotations.Log;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.LEDSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
+import static edu.wpi.first.wpilibj2.command.Commands.*;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
@@ -73,7 +73,8 @@ public class RobotContainer {
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    // Configure the button bindings
+    configureSubsystemDefaults();
+        // Configure the button bindings
     configureButtonBindings();
     delay = Shuffleboard.getTab("Live").add("Auto Delay", 0).withWidget(BuiltInWidgets.kNumberSlider).withProperties((Map.of("Min", 0, "Max", 10, "Block increment", 1))).getEntry();
     autoChooser.setDefaultOption("Nothing", new WaitCommand(5));
@@ -84,37 +85,42 @@ public class RobotContainer {
     autoChooser.addOption("1 Ball Auto", new OneBallAuto(m_drive, m_shooter, m_intake));
     //Shuffleboard.getTab("Live").add("Auto Mode",autoChooser).withSize(2, 1);
     SmartDashboard.putData("Auto Chooser",autoChooser);
-
-    
-    
-    m_drive.setDefaultCommand(
-        new RunCommand(
-            () -> m_drive.arcadeDrive(
-                    m_driverController.getLeftY(),
-                    m_driverController.getRightX()),
-            m_drive).withName("Drive Manual"));
-    m_drive.setMaxOutput(DriveConstants.kNormalDriveMaxSpeed);
-    m_intake.setDefaultCommand(
-        new RunCommand(
-            () -> m_intake.intake(MathUtil.applyDeadband(m_operatorController.getLeftY(), OIConstants.kOperatorLeftDeadband)),
-            m_intake));
-    m_climber.setDefaultCommand(
-        new RunCommand(
-            () -> m_climber.climber(MathUtil.applyDeadband(m_operatorController.getRightY(), OIConstants.kOperatorRightDeadband)),
-            m_climber));
   }
 
-  /**
-   * Use this method to define your button->command mappings. Buttons can be created by
+  private void configureSubsystemDefaults() {
+    m_drive.setDefaultCommand(run(() -> m_drive.arcadeDrive(
+      m_driverController.getLeftY(),m_driverController.getRightX()),m_drive)
+      .withName("ARCADE DRIVE"));
+      
+    m_drive.setMaxOutput(DriveConstants.kNormalDriveMaxSpeed);
+      
+    m_intake.setDefaultCommand(run(() -> m_intake.intake(
+      MathUtil.applyDeadband(m_operatorController.getLeftY(),
+              OIConstants.kOperatorLeftDeadband)),m_intake));
+      
+    m_climber.setDefaultCommand(run(() -> m_climber.climber(
+       MathUtil.applyDeadband(m_operatorController.getRightY(),
+               OIConstants.kOperatorRightDeadband)),m_climber));
+  }
+
+
+  /**   * Use this method to define your button->command mappings. Buttons can be created by
    * instantiating a {@link GenericHID} or one of its subclasses ({@link
    * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then passing it to a {@link
    * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
    */
   private void configureButtonBindings() {
-    new JoystickButton(m_operatorController, XboxController.Button.kA.value)
+    // new JoystickButton(m_operatorController, XboxController.Button.kA.value)
+    //     .onTrue(new Shoot(m_shooter, 0.45));
+    new Trigger(m_operatorController::getAButton)
         .onTrue(new Shoot(m_shooter, 0.45));
+
     new JoystickButton(m_operatorController, XboxController.Button.kLeftBumper.value)
         .whileTrue(new RunCommand(()->m_shooter.kick(50), m_shooter));
+
+    new Trigger(m_operatorController::getLeftBumper)
+        .whileTrue(run(()->m_shooter.kick(50), m_shooter));
+
     new JoystickButton(m_operatorController, XboxController.Button.kRightBumper.value)
         .whileTrue(new RunCommand(()->m_shooter.kick(-25), m_shooter));
 /*     new JoystickButton(m_driverController, XboxController.Button.kRightBumper.value)
@@ -138,7 +144,6 @@ public class RobotContainer {
     // new Trigger(m_operatorController::getLeftBumper)
     //     .whileTrue(Commands.startEnd(() -> m_drive.changeIdleMode(IdleMode.kCoast),
     //                                  () -> m_drive.changeIdleMode(IdleMode.kBrake)));
-
     
     new JoystickButton(m_operatorController, XboxController.Button.kY.value)
         .onTrue(new InstantCommand(()->m_intake.toggleExtension(), m_intake));
@@ -152,14 +157,17 @@ public class RobotContainer {
         .onTrue(new InstantCommand(()->m_shooter.plateUp()));
     // new Trigger(()->m_operatorController.getPOV()==0).onTrue(Commands.runOnce(m_shooter::plateUp));
 
-    new POVButton(m_operatorController, 180)
-        .onTrue(new InstantCommand(()->m_shooter.plateDown()));
-    // new Trigger(()->m_operatorController.getPOV()==180).onTrue(Commands.runOnce(m_shooter::plateDown));
+    // new POVButton(m_operatorController, 180)
+    //     .onTrue(new InstantCommand(()->m_shooter.plateDown()));
+    new Trigger(()->m_operatorController.getPOV()==180).onTrue(
+        parallel(runOnce(m_shooter::plateDown),
+                 print("PLATE DOWN")));
 
-    new POVButton(m_operatorController, 90)
-        .onTrue(new ShootOnce(m_shooter));
-    new Trigger(()->m_operatorController.getPOV()==90).onTrue(Commands.sequence(Commands.runOnce(m_shooter::plateDown)));
-
+    // new POVButton(m_operatorController, 90)
+    //     .onTrue(new ShootOnce(m_shooter));
+    new Trigger(()->(m_operatorController.getPOV()==90)).onTrue(
+        parallel(new ShootOnce(m_shooter),
+                 print("SHOOT ONCE")));
 
     new JoystickButton(m_operatorController, XboxController.Button.kX.value)
         .onTrue(new InstantCommand(()->m_shooter.toggleTilt()));

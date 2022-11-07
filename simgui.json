@@ -1,0 +1,16 @@
+{
+  "NTProvider": {
+    "types": {
+      "/FMSInfo": "FMSInfo",
+      "/Shuffleboard/RobotContainer/m_climber": "Subsystem",
+      "/Shuffleboard/RobotContainer/m_drive": "Subsystem",
+      "/Shuffleboard/RobotContainer/m_intake": "Subsystem",
+      "/Shuffleboard/RobotContainer/m_led": "Subsystem",
+      "/Shuffleboard/RobotContainer/m_shooter": "Subsystem",
+      "/Shuffleboard/RobotContainer/m_vision": "Subsystem",
+      "/SmartDashboard/Auto Chooser": "String Chooser",
+      "/SmartDashboard/Differential Drive": "DifferentialDrive",
+      "/SmartDashboard/Gyro": "Gyro"
+    }
+  }
+}
