@@ -13,6 +13,10 @@ import io.github.oblarg.oblog.Loggable;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+
+import static edu.wpi.first.wpilibj2.command.Commands.*;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -121,9 +125,44 @@ public class ShooterSubsystem extends SubsystemBase implements Loggable{
   public void kick(double speed) {
     m_kickIn.setVoltage(convertPercentTo12Volts(speed));
   }
-  
-  @Override
-  public void periodic() {
-    // This method will be called once per scheduler run
+
+  /** Returns command to flip plate */
+  public Command flipPlateCommand() {
+    return sequence(runOnce(this::plateUp),
+                    Commands.wait(0.15),
+                    runOnce(this::plateDown));
   }
+
+  /** Returns command to wait
+   * @param time in seconds
+   */
+  public Command wait(double time) {
+    return Commands.wait(time);
+  }
+  
+  /** Returns command to shoot once */
+  public Command shootOnceCommand() {
+    return sequence(
+            race(
+              sequence(runOnce(this::plateDown),
+                       wait(0.75),
+                       flipPlateCommand()),
+              run(this::shoot)),
+            run(this::stopShoot))
+          .alongWith(print("ONE SHOT"))
+          .withName("shootOnceCommand");
+  }
+
+  /** TODO Returns command to shoot twice */
+  public Command shootTwiceCommand() {
+    return sequence(
+            race(
+              sequence(runOnce(this::plateDown),
+                       wait(0.75),
+                       flipPlateCommand()),
+              run(this::shoot)),
+            run(this::stopShoot))
+          .alongWith(print("TWO SHOTS"));
+  }
+
 }

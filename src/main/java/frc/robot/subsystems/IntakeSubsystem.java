@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import edu.wpi.first.wpilibj2.command.Command;
+import static edu.wpi.first.wpilibj2.command.Commands.*;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import com.revrobotics.CANSparkMax;
@@ -22,48 +24,37 @@ public class IntakeSubsystem extends SubsystemBase implements Loggable {
   /** Creates a new IntakeSubsystem. */
   public IntakeSubsystem() {
     stopIntake();
-
     m_intakeExtender.set(Value.kReverse);
-
     m_intake.restoreFactoryDefaults();
     m_intake.setIdleMode(IdleMode.kBrake);
     m_intake.setInverted(false);
     m_intake.setSmartCurrentLimit(40, 60);
-   
-    //SmartDashboard.putData("Intake",m_intakeExtender);
-    
     m_intake.burnFlash();
-
-
   }
   
-  public void toggleExtension() {
-    m_intakeExtender.toggle();
+  public Command toggleCommand() {
+    return runOnce(m_intakeExtender::toggle,this);
   }
   public void extend() {
     m_intakeExtender.set(Value.kForward);
   }
-  public void retract() {
-    m_intakeExtender.set(Value.kReverse);
+  public Command retractC() {
+    return runOnce(()->m_intakeExtender.set(Value.kReverse))
+           .alongWith(print("RETRACT INTAKE")).withName("retractC");
+  }
+  public Command deployC() {
+    return runOnce(()->m_intakeExtender.set(Value.kForward))
+           .alongWith(print("DEPLOY INTAKE")).withName("deployC");
   }
   
   public void stopIntake() {
     m_intake.stopMotor();
   }
 
-  /* public void intake(boolean inverted) {
-    int direction = inverted ? 1 : -1;
-    m_intake.setVoltage(IntakeConstants.kIntakeVolts*direction);
-
-  } */
   public void intake() {
     m_intake.setVoltage(IntakeConstants.kIntakeSpeed);
   }
   public void intake(double modifier) {
     m_intake.setVoltage(IntakeConstants.kIntakeSpeed*modifier);
-  }
-  @Override
-  public void periodic() {
-    // This method will be called once per scheduler run
   }
 }

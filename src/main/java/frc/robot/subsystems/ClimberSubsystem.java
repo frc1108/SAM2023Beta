@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import java.util.function.DoubleSupplier;
+
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxLimitSwitch;
@@ -11,9 +13,12 @@ import com.revrobotics.SparkMaxLimitSwitch.Type;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+// import java.util.TreeMap;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ClimberConstants;
 import io.github.oblarg.oblog.Loggable;
@@ -25,6 +30,7 @@ public class ClimberSubsystem extends SubsystemBase implements Loggable {
   private final RelativeEncoder m_encoder;
   private final SparkMaxLimitSwitch m_reverseLimit;
   private final SparkMaxLimitSwitch m_forwardLimit;
+  // private final TreeMap<Double,Double> m_climbPos = new TreeMap<Double,Double>();
 
   /** Creates a new ClimberSubsystem. */
   public ClimberSubsystem() {
@@ -51,7 +57,6 @@ public class ClimberSubsystem extends SubsystemBase implements Loggable {
 
   @Override
   public void periodic() {
-
     // This method will be called once per scheduler run
     if(getReverseLimit()) {
       resetEncoder();
@@ -61,15 +66,19 @@ public class ClimberSubsystem extends SubsystemBase implements Loggable {
   public boolean getReverseLimit() {
     return m_reverseLimit.isPressed();
   }
+
   public boolean getForwardLimit() {
     return m_forwardLimit.isPressed();
   }
+
   public void toggleTilt() {
     m_climberTilt.toggle();
   }
+
   public void extend() {
     m_climberTilt.set(Value.kForward);
   }
+
   public void retract() {
     m_climberTilt.set(Value.kReverse);
   }
@@ -79,7 +88,7 @@ public class ClimberSubsystem extends SubsystemBase implements Loggable {
   }
 
   public void climber(double speed) {
-    double position = m_encoder.getPosition();
+    double position = getPosition();
     double modifier = 1;
     if (position <= 30 && position > 10){
       modifier = 0.65;
@@ -91,6 +100,14 @@ public class ClimberSubsystem extends SubsystemBase implements Loggable {
       modifier = 1;
     }
     m_climber.setVoltage(12*speed*modifier*ClimberConstants.kClimberModifier);
+  }
+
+  /** TODO Returns manual climb command
+   * @param speed -1 to 1 
+   * @return Command for manual control
+   */
+  public Command manualC(DoubleSupplier speed) {
+    return Commands.none();
   }
 
   @Log

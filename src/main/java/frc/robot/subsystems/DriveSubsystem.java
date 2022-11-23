@@ -12,11 +12,13 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -24,9 +26,10 @@ import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.pantherlib.Trajectory6391;
 import io.github.oblarg.oblog.Loggable;
-
+import edu.wpi.first.math.controller.DifferentialDriveAccelerationLimiter;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.function.DoubleSupplier;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
@@ -48,6 +51,10 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   public final double m_slewTurn = 4.25;
   private final SlewRateLimiter m_speedSlew = new SlewRateLimiter(m_slewSpeed);
   private final SlewRateLimiter m_turnSlew = new SlewRateLimiter(m_slewTurn);
+  // private final DifferentialDriveAccelerationLimiter m_driveLimiter;
+  // private final  m_drivetrainPlant = new LinearSystem<>(null, null, null, null);
+  public final double m_turnSpeedRatio;
+
 
   private final RelativeEncoder m_leftEncoder, m_rightEncoder;
   private final DifferentialDriveOdometry m_odometry;
@@ -56,7 +63,7 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   /** Creates a new ExampleSubsystem. */
   public DriveSubsystem() {
     // Stops drive motors
-    idle();
+    stop();
 
     // Restores default CANSparkMax settings
     m_leftMain.restoreFactoryDefaults();
@@ -101,16 +108,20 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
     m_drive.setDeadband(0.05);
     m_drive.setSafetyEnabled(true);
 
+    m_turnSpeedRatio = DriveConstants.kTurnSpeedRatio;
+
     // Start robot odometry tracker
-    m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(getHeading()));
+    m_odometry = 
+      new DifferentialDriveOdometry(Rotation2d.fromDegrees(getHeading()),0.0,0.0);
+
+    // Differential Acceleration Limiter
+    // m_driveLimiter = new DifferentialDriveAccelerationLimiter(null, m_turnSpeedRatio, m_slewTurn, m_slewSpeed)
 
     SmartDashboard.putData("Differential Drive", m_drive);
     SmartDashboard.putData("Gyro", m_gyro);
   }
 
-  /**
-   * Updating values to logging and odometry, or other periodic updates
-   */
+  /** Updating values to logging and odometry */
   @Override
   public void periodic() {
     m_odometry.update(Rotation2d.fromDegrees(getHeading()), m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
@@ -119,20 +130,21 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   }
 
   /***** Drivetrain methods
-   * stop: set motors to zero
    * setMaxOutput: set drivetrain max speed
    * arcadeDrive: set output of drive motors with robot speed and rotation
    * tankDriveVolts: set voltage of drive motors directly
    * tankDriveFeedforwardPID: set wheel speed of drive motors closed loop
    */
 
-  public void idle(){
+  /** Stop drive motors */
+  public void stop(){
     m_leftMain.stopMotor();
     m_leftFollow.stopMotor();
     m_rightMain.stopMotor();
     m_rightFollow.stopMotor();
   }
 
+  /** Return command to  */
   public void changeIdleMode(IdleMode idleMode) {
     m_leftMain.setIdleMode(idleMode);
     m_leftFollow.setIdleMode(idleMode);
@@ -140,12 +152,41 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
     m_rightFollow.setIdleMode(idleMode);
   }
 
+  public void setBrake(){
+    changeIdleMode(IdleMode.kBrake);
+  }
+
+  public void setCoast(){
+    changeIdleMode(IdleMode.kCoast);
+  }
+
   public void setMaxOutput(double maxOutput) {
     m_drive.setMaxOutput(maxOutput);
   }
 
   public void arcadeDrive(double fwd, double rot) {
-    m_drive.arcadeDrive(m_speedSlew.calculate(-fwd), 0.8*m_turnSlew.calculate(rot));
+    m_drive.arcadeDrive(m_speedSlew.calculate(-fwd), 
+    m_turnSpeedRatio*m_turnSlew.calculate(rot));
+  }
+  /**
+   * Returns a command that drives the robot with arcade controls.
+   *
+   * @param fwd the commanded forward movement
+   * @param rot the commanded rotation
+   */
+  public Command arcadeDriveCommand(DoubleSupplier fwd, DoubleSupplier rot) {
+    // A split-stick arcade command, with forward/backward controlled by the left
+    // hand, and turning controlled by the right.
+    return Commands.run(() -> m_drive.arcadeDrive(fwd.getAsDouble(), rot.getAsDouble()))
+        .withName("arcadeDriveCommand");
+  }
+
+  public void setBurstModeSpeed(){
+    m_drive.setMaxOutput(DriveConstants.kBurstDriveMaxSpeed);
+  }
+
+  public void setDefaultSpeed(){
+    m_drive.setMaxOutput(DriveConstants.kDefaultDriveMaxSpeed);
   }
 
   public void curvatureDrive(double fwd, double rot, boolean quickTurn) {
@@ -218,7 +259,10 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   public void resetOdometry(Pose2d pose) {
     resetEncoders();
     zeroHeading();
-    m_odometry.resetPosition(pose, Rotation2d.fromDegrees(getHeading()));
+    m_odometry.resetPosition(Rotation2d.fromDegrees(getHeading()),
+    m_leftEncoder.getPosition(),
+    m_rightEncoder.getPosition(),
+    pose);
   }
 
   public DifferentialDriveWheelSpeeds getWheelSpeeds() {

@@ -6,8 +6,6 @@ package frc.robot;
 
 import java.util.Map;
 
-import com.revrobotics.CANSparkMax.IdleMode;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.networktables.GenericEntry;
@@ -16,8 +14,7 @@ import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
-import edu.wpi.first.wpilibj2.command.button.JoystickButton;
-import edu.wpi.first.wpilibj2.command.button.POVButton;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -39,11 +36,9 @@ import io.github.oblarg.oblog.annotations.Log;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.LEDSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+
 import static edu.wpi.first.wpilibj2.command.Commands.*;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.RunCommand;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
 
 /**
@@ -62,20 +57,19 @@ public class RobotContainer {
   private final ColorSubsystem m_color = new ColorSubsystem();
   @Log public final VisionSubsystem m_vision = new VisionSubsystem();
 
-  private final XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
-  private final XboxController m_operatorController = new XboxController(OIConstants.kOperatorControllerPort);
+  private final CommandXboxController m_driverCon = new CommandXboxController(OIConstants.kDriverControllerPort);
+  private final CommandXboxController m_operatorCon = new CommandXboxController(OIConstants.kOperatorControllerPort);
 
   private final SendableChooser<Command> autoChooser = new SendableChooser<>();
  // private final SendableChooser<Double> delayChooser = new SendableChooser<>();
   private GenericEntry delay;
   private boolean runLight = false;
-  //private double autoDelay = 0;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     configureSubsystemDefaults();
         // Configure the button bindings
-    configureButtonBindings();
+    configureTriggers();
     delay = Shuffleboard.getTab("Live").add("Auto Delay", 0).withWidget(BuiltInWidgets.kNumberSlider).withProperties((Map.of("Min", 0, "Max", 10, "Block increment", 1))).getEntry();
     autoChooser.setDefaultOption("Nothing", new WaitCommand(5));
     autoChooser.addOption("2 Ball Auto", new TwoBallAuto(m_drive, m_shooter, m_intake));
@@ -83,113 +77,119 @@ public class RobotContainer {
     autoChooser.addOption("TEST Rude 2 Ball Auto", new WIPRudeTwoBallAuto(m_drive, m_shooter, m_intake));
     autoChooser.addOption("4 Ball Auto", new FourBallShort(m_drive, m_shooter, m_intake));
     autoChooser.addOption("1 Ball Auto", new OneBallAuto(m_drive, m_shooter, m_intake));
-    //Shuffleboard.getTab("Live").add("Auto Mode",autoChooser).withSize(2, 1);
     SmartDashboard.putData("Auto Chooser",autoChooser);
   }
 
   private void configureSubsystemDefaults() {
     m_drive.setDefaultCommand(run(() -> m_drive.arcadeDrive(
-      m_driverController.getLeftY(),m_driverController.getRightX()),m_drive)
+      m_driverCon.getLeftY(),m_driverCon.getRightX()),m_drive)
       .withName("ARCADE DRIVE"));
       
-    m_drive.setMaxOutput(DriveConstants.kNormalDriveMaxSpeed);
+    m_drive.setDefaultSpeed();
       
     m_intake.setDefaultCommand(run(() -> m_intake.intake(
-      MathUtil.applyDeadband(m_operatorController.getLeftY(),
+      MathUtil.applyDeadband(m_operatorCon.getLeftY(),
               OIConstants.kOperatorLeftDeadband)),m_intake));
       
     m_climber.setDefaultCommand(run(() -> m_climber.climber(
-       MathUtil.applyDeadband(m_operatorController.getRightY(),
+       MathUtil.applyDeadband(m_operatorCon.getRightY(),
                OIConstants.kOperatorRightDeadband)),m_climber));
   }
 
-
-  /**   * Use this method to define your button->command mappings. Buttons can be created by
+  /**   * Use this method to define your trigger-> command mappings. TriggButtons can be created by
    * instantiating a {@link GenericHID} or one of its subclasses ({@link
    * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then passing it to a {@link
    * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
    */
-  private void configureButtonBindings() {
-    // new JoystickButton(m_operatorController, XboxController.Button.kA.value)
-    //     .onTrue(new Shoot(m_shooter, 0.45));
-    new Trigger(m_operatorController::getAButton)
-        .onTrue(new Shoot(m_shooter, 0.45));
+  private void configureTriggers() {
+    /** One shot */
+    m_operatorCon.povRight().onTrue(m_shooter.shootOnceCommand());
 
-    new JoystickButton(m_operatorController, XboxController.Button.kLeftBumper.value)
-        .whileTrue(new RunCommand(()->m_shooter.kick(50), m_shooter));
+    /** Two shots */
+    m_operatorCon.a().onTrue(parallel(new Shoot(m_shooter,0.45),
+      print("TWO SHOTS")));
 
-    new Trigger(m_operatorController::getLeftBumper)
-        .whileTrue(run(()->m_shooter.kick(50), m_shooter));
+    /** Load in   */
+    m_operatorCon.leftBumper().whileTrue(run(()->m_shooter.kick(50), m_shooter));
+    /**  */
+    m_operatorCon.rightBumper().whileTrue(run(()->m_shooter.kick(-25), m_shooter));
+  
+    /** Drive faster while holding button */
+    m_driverCon.rightBumper().onTrue(runOnce(m_drive::setBurstModeSpeed))
+                             .onFalse(runOnce(m_drive::setDefaultSpeed));
 
-    new JoystickButton(m_operatorController, XboxController.Button.kRightBumper.value)
-        .whileTrue(new RunCommand(()->m_shooter.kick(-25), m_shooter));
-/*     new JoystickButton(m_driverController, XboxController.Button.kRightBumper.value)
-        .whileActiveOnce(new RunCommand(
-            () -> m_drive.arcadeDrive(
-                    (m_driverController.getLeftY()*OIConstants.kDriverSlowModifier),
-                    (m_driverController.getRightX())*OIConstants.kDriverSlowModifier),
-            m_drive
-        )).whileActiveOnce(new StartEndCommand(
-            () -> m_drive.changeIdleMode(IdleMode.kCoast),
-            () -> m_drive.changeIdleMode(IdleMode.kBrake))); */
-    new JoystickButton(m_driverController, XboxController.Button.kRightBumper.value)
-        .onTrue(new InstantCommand(()->m_drive.setMaxOutput(DriveConstants.kBurstDriveMaxSpeed)))
-        .onFalse(new InstantCommand(()->m_drive.setMaxOutput(DriveConstants.kSlowDriveMaxSpeed)));
+    /** Below may or may not be a drift button */
+    m_driverCon.rightBumper().onTrue(runOnce(m_drive::setCoast))
+                             .onFalse(runOnce(m_drive::setBrake));
+
+    /** Retract intake  */
+    m_operatorCon.y().onTrue(m_intake.retractC());    
+
+    /** Extend intake when intaking */
+    new Trigger(()->Math.abs(m_operatorCon.getLeftY())>0.2)
+        .onTrue(runOnce(m_intake::extend,m_intake));
+
+    /** Toggle climber tilt */
+    m_operatorCon.back().onTrue(runOnce(m_climber::toggleTilt,m_climber));
+
+    /** Shooter plate up */
+    m_operatorCon.povUp().onTrue(runOnce(m_shooter::plateUp));
+
+    /** Shooter plate down */
+    m_operatorCon.povDown().onTrue(runOnce(m_shooter::plateDown).andThen(m_led.chasingHSVCommand(24)));
+
+    /** Toggle shooter tilt */
+    m_operatorCon.x().onTrue(runOnce(m_shooter::toggleTilt));
+
+    /** Red LEDs */
+    m_driverCon.povUp().onTrue(runOnce(()->m_led.setColor(255, 0, 0),m_led));
+
+    /** Gold LEDs */
+    m_driverCon.povRight().onTrue(runOnce(()->m_led.setColor(255, 100, 0),m_led));
     
-    //Below may or may not be a drift button
-    new JoystickButton(m_driverController, XboxController.Button.kLeftBumper.value)
-        .whileTrue(new StartEndCommand(
-            () -> m_drive.changeIdleMode(IdleMode.kCoast),
-            () -> m_drive.changeIdleMode(IdleMode.kBrake)));
-    // new Trigger(m_operatorController::getLeftBumper)
-    //     .whileTrue(Commands.startEnd(() -> m_drive.changeIdleMode(IdleMode.kCoast),
-    //                                  () -> m_drive.changeIdleMode(IdleMode.kBrake)));
+    /** Blue LEDs */
+    m_driverCon.povDown().onTrue(runOnce(()->m_led.setColor(0 , 0, 255),m_led));
+
+    /** Chasing lights LEDs */
+    m_driverCon.povLeft().onTrue(m_led.chasingHSVCommand(24));
+
+    // m_driverCon.povUp().onTrue(sequence(runOnce(()->runLight=false),
+    //                                     wait(0.1),
+    //                                     runOnce(m_led::setRed, m_led)));
+
+    // m_driverCon.povRight().onTrue(sequence(runOnce(()->runLight=false),
+    //                                     new WaitCommand(0.1),
+    //                                     runOnce(()->m_led.setColor(255,100,0), m_led)));
     
-    new JoystickButton(m_operatorController, XboxController.Button.kY.value)
-        .onTrue(new InstantCommand(()->m_intake.toggleExtension(), m_intake));
-    // new Trigger(m_operatorController::getYButton).onTrue(Commands.runOnce(m_intake::toggleExtension,m_intake));
+    // m_driverCon.povDown().onTrue(sequence(runOnce(()->runLight=false),
+    //                                     new WaitCommand(0.1),
+    //                                     runOnce(()->m_led.setColor(0,0,255), m_led)));
 
-    new JoystickButton(m_operatorController, XboxController.Button.kBack.value)
-        .onTrue(new InstantCommand(()->m_climber.toggleTilt(), m_climber));
-    // new Trigger(m_operatorController::getBackButton).onTrue(Commands.runOnce(m_climber::toggleTilt,m_climber));
+    // m_driverCon.povLeft().onTrue(sequence(runOnce(()->runLight=false),
+    //                                     (()->m_led.setColor(0,0,255), m_led)));
 
-    new POVButton(m_operatorController, 0)
-        .onTrue(new InstantCommand(()->m_shooter.plateUp()));
-    // new Trigger(()->m_operatorController.getPOV()==0).onTrue(Commands.runOnce(m_shooter::plateUp));
+    // m_driverCon.a().onTrue()
 
-    // new POVButton(m_operatorController, 180)
-    //     .onTrue(new InstantCommand(()->m_shooter.plateDown()));
-    new Trigger(()->m_operatorController.getPOV()==180).onTrue(
-        parallel(runOnce(m_shooter::plateDown),
-                 print("PLATE DOWN")));
-
-    // new POVButton(m_operatorController, 90)
-    //     .onTrue(new ShootOnce(m_shooter));
-    new Trigger(()->(m_operatorController.getPOV()==90)).onTrue(
-        parallel(new ShootOnce(m_shooter),
-                 print("SHOOT ONCE")));
-
-    new JoystickButton(m_operatorController, XboxController.Button.kX.value)
-        .onTrue(new InstantCommand(()->m_shooter.toggleTilt()));
-    new POVButton(m_driverController, 0)
-        .onTrue(new InstantCommand(()->runLight=false))
-        .onTrue(new WaitCommand(0.1)
-        .andThen(new InstantCommand(()->m_led.setRed(),m_led)));
-    new POVButton(m_driverController, 90)
-        .onTrue(new InstantCommand(()->runLight=false))
-        .onTrue(new WaitCommand(0.1)
-        .andThen(new InstantCommand(()->m_led.setColor(255, 100, 0),m_led)));
-    new POVButton(m_driverController, 180)
-        .onTrue(new InstantCommand(()->runLight=false))
-        .onTrue(new WaitCommand(0.1)
-        .andThen(new InstantCommand(()->m_led.setColor(0, 0, 255),m_led)));
-    new POVButton(m_driverController, 270)
-        .onTrue(new InstantCommand(()->runLight = true))
-        .onTrue(new RunCommand(()->m_led.chasingHSV(24)).until(()->runLight==false));
+    // new POVButton(m_driverController, 0)
+    //     .onTrue(new InstantCommand(()->runLight=false))
+    //     .onTrue(new WaitCommand(0.1)
+    //     .andThen(new InstantCommand(()->m_led.setRed(),m_led)));
+    // new POVButton(m_driverController, 90)
+    //     .onTrue(new InstantCommand(()->runLight=false))
+    //     .onTrue(new WaitCommand(0.1)
+    //     .andThen(new InstantCommand(()->m_led.setColor(255, 100, 0),m_led)));
+    // new POVButton(m_driverController, 180)
+    //     .onTrue(new InstantCommand(()->runLight=false))
+    //     .onTrue(new WaitCommand(0.1)
+    //     .andThen(new InstantCommand(()->m_led.setColor(0, 0, 255),m_led)));
+    // new POVButton(m_driverController, 270)
+    //     .onTrue(new InstantCommand(()->runLight = true))
+    //     .onTrue(new RunCommand(()->m_led.chasingHSV(24)).until(()->runLight==false));
 
     // While driver holds the A button Auto Aim to the High Hub and range to distance    
-    new JoystickButton(m_driverController, XboxController.Button.kA.value)
-        .whileTrue(new AutoAim(m_drive,m_vision,true,m_driverController));
+    // new JoystickButton(m_driverController, XboxController.Button.kA.value)
+    //     .whileTrue(new AutoAim(m_drive,m_vision,true,m_driverController));
+    m_driverCon.a().whileTrue(new AutoAim(m_drive,m_vision,true,m_driverCon));
  
   }
 
@@ -200,8 +200,8 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     // An ExampleCommand will run in autonomous
-    return new SequentialCommandGroup(new WaitCommand(delay.getDouble(0)), autoChooser.getSelected());
-    //return autoChooser.getSelected();
+    //return new SequentialCommandGroup(new WaitCommand(delay.getDouble(0)), autoChooser.getSelected());
+    return sequence(Commands.wait(delay.getDouble(0)), autoChooser.getSelected());
   }
 
   public void setOperatorRumble() {
@@ -209,8 +209,8 @@ public class RobotContainer {
                      ((m_color.getRedFrontMatch()&&DriverStation.getAlliance()==DriverStation.Alliance.Red));
     var badRumble = ((m_color.getBlueFrontMatch()&&DriverStation.getAlliance()==DriverStation.Alliance.Red))||
                      ((m_color.getRedFrontMatch()&&DriverStation.getAlliance()==DriverStation.Alliance.Blue));
-    m_operatorController.setRumble(GenericHID.RumbleType.kLeftRumble, goodRumble ? 0.2 : 0 );
-    m_operatorController.setRumble(GenericHID.RumbleType.kRightRumble, badRumble ? 1 : 0 );
+    m_operatorCon.getHID().setRumble(GenericHID.RumbleType.kLeftRumble, goodRumble ? 0.2 : 0 );
+    m_operatorCon.getHID().setRumble(GenericHID.RumbleType.kRightRumble, badRumble ? 1 : 0 );
   }
 
   public void reset(){

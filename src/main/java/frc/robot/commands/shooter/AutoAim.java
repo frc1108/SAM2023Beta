@@ -6,11 +6,11 @@ package frc.robot.commands.shooter;
 
 import org.photonvision.targeting.PhotonPipelineResult;
 
-import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.CommandBase;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.DriveSubsystem;
@@ -19,7 +19,7 @@ public class AutoAim extends CommandBase {
   VisionSubsystem m_vision;
   DriveSubsystem m_drive;
   Boolean m_hasShooter;
-  XboxController m_driverController;
+  CommandXboxController m_driverController;
   PhotonPipelineResult result;
   PIDController m_forwardPID = new PIDController(DriveConstants.kPForward, 0, 0);
   PIDController m_rotationPID = new PIDController(DriveConstants.kPTurn, 0, 0.001);
@@ -30,11 +30,11 @@ public class AutoAim extends CommandBase {
    * @param vision
    * @param hasShooter
    */
-  public AutoAim(DriveSubsystem drive, VisionSubsystem vision, Boolean hasShooter, XboxController driverController) {
+  public AutoAim(DriveSubsystem drive, VisionSubsystem vision, Boolean hasShooter, CommandXboxController m_driverCon) {
     m_drive = drive;
     m_vision = vision;
     m_hasShooter = hasShooter;
-    m_driverController = driverController;
+    m_driverController = m_driverCon;
     addRequirements(m_drive);
   }
 

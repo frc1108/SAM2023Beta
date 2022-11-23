@@ -23,9 +23,10 @@ public final class Constants {
     public static final int kRightMainPort = 2;
     public static final int kRightFollowPort = 4;
 
-    public static final double kNormalDriveMaxSpeed = 0.85; //modifier for slow mode
-    public static final double kSlowDriveMaxSpeed = 0.4; //modifier for slow mode
-    public static final double kBurstDriveMaxSpeed = 0.6; //modifier for slow mode
+    public static final double kDefaultDriveMaxSpeed = 0.35; // CTTD 0.85 -- reduced for demos
+    public static final double kBurstDriveMaxSpeed = 0.7; //modifier for slow mode
+    public static final double kTurnDriveMaxSpeed = 1; // CTTD 0.8 -- increased for demo mode
+    public static final double kTurnSpeedRatio = -1; //Default is -0.8 at max speed
 
     // Physical robot parameters
     public static final int kEncoderCPR = 42;  // NEO motor encoder Counts per revolution

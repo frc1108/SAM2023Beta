@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import edu.wpi.first.wpilibj.AddressableLED;
@@ -45,16 +47,22 @@ public class LEDSubsystem extends SubsystemBase {
    turnOn();
   }
   
-  public void chasingHSV(int hue) {
+  // public Command chasingLightCommand() {
+  //   return Commands.run(()->this.chasingHSV(24));
+  // }
 
-    for (var i = 0; i< m_buffer.getLength(); i++) {
-      final var trueValue = (m_changingValue + (i*180 / m_buffer.getLength())) % 180;
-      m_buffer.setHSV(i, hue, 255, trueValue);
-    }
-    m_changingValue += 2;
-    m_changingValue %=180;
-    m_led.setData(m_buffer);
-   turnOn();
+  public Command chasingHSVCommand(int hue) {
+    return Commands.run(()->{
+      for (var i = 0; i< m_buffer.getLength(); i++) {
+        final var trueValue = (m_changingValue + (i*180 / m_buffer.getLength())) % 180;
+        m_buffer.setHSV(i, hue, 255, trueValue);
+      }
+      m_changingValue += 2;
+      m_changingValue %=180;
+      m_led.setData(m_buffer);
+      turnOn();
+      },this);
+
   }
 
   public void turnOff() {
