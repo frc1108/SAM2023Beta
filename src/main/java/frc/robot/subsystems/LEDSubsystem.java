@@ -20,20 +20,17 @@ public class LEDSubsystem extends SubsystemBase {
   private int m_changingValue; 
   
   public LEDSubsystem() {
-    //m_led.setLength(LEDConstants.kLEDLength);
     m_led.setLength(m_buffer.getLength());
     m_led.setData(m_buffer);
     m_led.start();
-    //setRed();
     this.setColor(255, 100, 0);
-
   }
+
   public void setRed() {
     for (var i = 0; i < m_buffer.getLength(); i++) {
       // Sets the specified LED to the RGB values for red
       m_buffer.setRGB(i, 255, 0, 0);
-      
-   }
+    }
    m_led.setData(m_buffer);
    turnOn();
   }
@@ -47,10 +44,6 @@ public class LEDSubsystem extends SubsystemBase {
    turnOn();
   }
   
-  // public Command chasingLightCommand() {
-  //   return Commands.run(()->this.chasingHSV(24));
-  // }
-
   public Command chasingHSVCommand(int hue) {
     return Commands.run(()->{
       for (var i = 0; i< m_buffer.getLength(); i++) {
@@ -62,18 +55,14 @@ public class LEDSubsystem extends SubsystemBase {
       m_led.setData(m_buffer);
       turnOn();
       },this);
-
   }
 
   public void turnOff() {
-    
     m_led.stop();
   }
+
   public void turnOn() {
     m_led.start();
   }
-  @Override
-  public void periodic() {
-    // This method will be called once per scheduler run
-  }
+
 }

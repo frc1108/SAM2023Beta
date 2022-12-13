@@ -108,7 +108,7 @@ public class RobotContainer {
     /** Two shots */
     m_operatorCon.a().onTrue(parallel(new Shoot(m_shooter,0.45),
       print("TWO SHOTS")));
-
+    
     /** Load in   */
     m_operatorCon.leftBumper().whileTrue(run(()->m_shooter.kick(50), m_shooter));
     /**  */
@@ -123,11 +123,12 @@ public class RobotContainer {
                              .onFalse(runOnce(m_drive::setBrake));
 
     /** Retract intake  */
-    m_operatorCon.y().onTrue(m_intake.retractC());    
+    m_operatorCon.y().onTrue(m_intake.toggleCommand());   
 
     /** Extend intake when intaking */
-    new Trigger(()->Math.abs(m_operatorCon.getLeftY())>0.2)
-        .onTrue(runOnce(m_intake::extend,m_intake));
+    // m_intake.isIntaking().onTrue(runOnce(m_intake::extend,m_intake));
+    //m_intake.isStopped().onTrue(m_intake.retractC());
+    //new Trigger(()->Math.abs(m_operatorCon.getLeftY())>0.2).onTrue(runOnce(m_intake::extend,m_intake));
 
     /** Toggle climber tilt */
     m_operatorCon.back().onTrue(runOnce(m_climber::toggleTilt,m_climber));

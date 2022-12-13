@@ -15,21 +15,29 @@ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.VisionConstants;
 import frc.robot.pantherlib.Trajectory6391;
 import io.github.oblarg.oblog.Loggable;
 import edu.wpi.first.math.controller.DifferentialDriveAccelerationLimiter;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.function.DoubleSupplier;
+
+import org.photonvision.PhotonCamera;
+import org.photonvision.PhotonUtils;
+import org.photonvision.common.hardware.VisionLEDMode;
+import org.photonvision.targeting.PhotonPipelineResult;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
@@ -55,10 +63,11 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   // private final  m_drivetrainPlant = new LinearSystem<>(null, null, null, null);
   public final double m_turnSpeedRatio;
 
-
   private final RelativeEncoder m_leftEncoder, m_rightEncoder;
   private final DifferentialDriveOdometry m_odometry;
   private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
+  public PhotonCamera m_reflectiveCamera = new PhotonCamera("ircam");
+
 
   /** Creates a new ExampleSubsystem. */
   public DriveSubsystem() {
@@ -116,6 +125,9 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
 
     // Differential Acceleration Limiter
     // m_driveLimiter = new DifferentialDriveAccelerationLimiter(null, m_turnSpeedRatio, m_slewTurn, m_slewSpeed)
+
+    m_reflectiveCamera.setPipelineIndex(VisionConstants.kReflectivePipeline);
+    lightsOff();
 
     SmartDashboard.putData("Differential Drive", m_drive);
     SmartDashboard.putData("Gyro", m_gyro);
@@ -306,4 +318,34 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
       var config = new TrajectoryConfig(1, 3);
       return generateTrajectory(filename, config);
   }
+
+  public Command turnToAngle(double angle) {
+    return Commands.none();
+  }
+
+  public void lightsOn() {
+    m_reflectiveCamera.setLED(VisionLEDMode.kOn);
+ }
+
+ public void lightsOff() {
+    m_reflectiveCamera.setLED(VisionLEDMode.kOff);
+ }
+
+ public double getYaw(PhotonPipelineResult result) {
+    if (result.hasTargets()) {
+       return result.getBestTarget().getYaw();
+    }
+    return -999.0;
+ }
+
+ public double distanceToShooterTarget(PhotonPipelineResult result) {
+    return PhotonUtils.calculateDistanceToTargetMeters(VisionConstants.kReflectiveCameraHeight,
+                VisionConstants.kTargetHeight,
+                VisionConstants.kReflectiveCameraPitch,
+                Units.degreesToRadians(result.getBestTarget().getPitch()));
+ }
+
+ public CommandBase visionAimC(){
+  return Commands.none();
+ }
 }

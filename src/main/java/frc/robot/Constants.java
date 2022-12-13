@@ -17,18 +17,19 @@ import edu.wpi.first.math.util.Units;
  */
 public final class Constants {
   public static final class DriveConstants {
-    // CAN IDs for Spark Max drivetrain controllers
+    // CAN IDs for Drivetrain controllers (1-8)
     public static final int kLeftMainPort = 1;
     public static final int kLeftFollowPort = 3;
     public static final int kRightMainPort = 2;
     public static final int kRightFollowPort = 4;
 
-    public static final double kDefaultDriveMaxSpeed = 0.35; // CTTD 0.85 -- reduced for demos
+    // Speeds and turning rates
+    public static final double kDefaultDriveMaxSpeed = 0.85; // CTTD 0.85 -- reduced for demos
     public static final double kBurstDriveMaxSpeed = 0.7; //modifier for slow mode
-    public static final double kTurnDriveMaxSpeed = 1; // CTTD 0.8 -- increased for demo mode
+    public static final double kTurnDriveMaxSpeed = 0.9; // CTTD 0.8 -- increased for demo mode
     public static final double kTurnSpeedRatio = -1; //Default is -0.8 at max speed
 
-    // Physical robot parameters
+    // Physical robot parameters (gear ratio, wheel diameter, etc)
     public static final int kEncoderCPR = 42;  // NEO motor encoder Counts per revolution
     public static final double kGearRatio = 8.45; // Toughbox mini gear ratio
     public static final double kWheelDiameterMeters = Units.inchesToMeters(6); // Wheel diameter
